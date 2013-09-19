@@ -26,18 +26,14 @@ if($date != $_date){
 	saveSetting('extsigned', 0);
 	saveSetting('extsign_uid', 0);
 	saveSetting('autoupdate_uid', 0);
+	CACHE::clear();
 }
 
 $time = date('Hi');
 if($time < 3 || $time > 2357) exit('wait for retry');
 @set_time_limit(90);
-$tids = array();
-// 加载待签到的贴吧列表
-$query = DB::query("SELECT tid FROM sign_log WHERE status IN (0, 1) AND date='{$date}' ORDER BY RAND() LIMIT 0,40");
-while($result = DB::fetch($query)){
-	$tids[] = $result['tid'];
-}
-if(!$tids){
+$tid = DB::result_first("SELECT tid FROM sign_log WHERE status IN (0, 1) AND date='{$date}' ORDER BY RAND() LIMIT 0,1");
+if(!$tid){
 	if(!getSetting('extsigned')){
 		$num = 0;
 		$_uid = getSetting('extsign_uid') ? getSetting('extsign_uid') : 1;
@@ -67,11 +63,10 @@ table tbody tr:nth-child(odd) { background: #fafafa; }
 <table border="0">
 <thead><tr><td>用户</td><td>贴吧</td><td>状态</td></tr></thead>
 EOF;
-$tid = implode(', ', $tids);
 $first = true;
 $done = 0;
-$query = DB::query("SELECT * FROM my_tieba WHERE tid IN ({$tid})");
-while($tieba = DB::fetch($query)){
+while($tid){
+	$tieba = DB::fetch_first("SELECT * FROM my_tieba WHERE tid='{$tid}'");
 	if($done > 20) break;
 	if($tieba['skiped']){
 		DB::query("UPDATE sign_log set status='-2' WHERE tid='{$tieba[tid]}' AND date='{$date}'");
@@ -105,5 +100,6 @@ while($tieba = DB::fetch($query)){
 		}
 	}
 	sleep(1);
+	$tid = DB::result_first("SELECT tid FROM sign_log WHERE status IN (0, 1) AND date='{$date}' ORDER BY RAND() LIMIT 0,1");
 }
 echo '</table><meta http-equiv="refresh" content="5" />';
